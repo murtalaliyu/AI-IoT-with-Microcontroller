@@ -54,7 +54,7 @@
 #include "driver/i2s.h"
 
 // WS2812 configuration
-#define PIN_NEOPIXEL 8  // Control pin
+#define PIN_NEOPIXEL D8  // Control pin
 #define NUMPIXELS 10    // Number of LEDs
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
@@ -95,7 +95,7 @@ void controlLED(const String& command) {
         pixels.show();
         ei_printf("LED: Green ON\n");
     }
-    else if (command == "turn_off") {
+    else if (command == "turn off") {
         pixels.fill(OFF);
         pixels.show();
         ei_printf("LED: OFF\n");
@@ -103,7 +103,7 @@ void controlLED(const String& command) {
     else if (command == "yellow") {
         pixels.fill(YELLOW);
         pixels.show();
-        ei_printf("LED: Yello ON\n");
+        ei_printf("LED: Yellow ON\n");
     }
     else if (command == "red") {
         pixels.fill(RED);
@@ -114,7 +114,7 @@ void controlLED(const String& command) {
     else if (command == "noise") {
         ei_printf("Noise detected, no action\n");
     }
-    else if (command == "others") {
+    else if (command == "other") {
         ei_printf("Others detected, no action\n");
     }
 }
