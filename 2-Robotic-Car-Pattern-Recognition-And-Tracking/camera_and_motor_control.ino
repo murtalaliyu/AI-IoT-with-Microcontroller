@@ -15,8 +15,8 @@
 BCC_ESP32S3 motor_control;
 
 // Set motor speed
-#define MOTOR_SPEED       -25
-#define TURN_SPEED        -40
+#define MOTOR_SPEED       25
+#define TURN_SPEED        40
 
 // Select camera model
 #define XIAO_ESP32_S3_SENSE // has PSRAM
@@ -229,12 +229,12 @@ void loop() {
       else if (center_x > 68) {
         // turn left
         Serial.printf(">>> Turn left <<<\n");
-        motor_control.motor(MOTOR_SPEED, TURN_SPEED);
+        motor_control.motor(TURN_SPEED, MOTOR_SPEED);
         digitalWrite(21, LOW);
       } else if (center_x < 28) {
         // turn right
         Serial.printf(">>> Turn right <<<\n");
-        motor_control.motor(TURN_SPEED, MOTOR_SPEED);
+        motor_control.motor(MOTOR_SPEED, TURN_SPEED);
         digitalWrite(21, LOW);
       } else {
         // go straight
