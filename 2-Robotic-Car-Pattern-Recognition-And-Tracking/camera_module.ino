@@ -1,3 +1,7 @@
+/**
+* This code is used to capture target image for training the CNN model.
+*/
+
 #include "esp_camera.h"
 #include "FS.h"
 #include "SD.h"
