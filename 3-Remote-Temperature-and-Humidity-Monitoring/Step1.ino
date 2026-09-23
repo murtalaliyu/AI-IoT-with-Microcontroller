@@ -3,8 +3,8 @@
 WebServer server(80);
 
 // WiFi config - Mobile hotspot recommended
-const char* ssid = "iPhone";
-const char* password = "ihavethebestbrother";
+const char* ssid = "";
+const char* password = "";
 
 void setup() {
   // put your setup code here, to run once:
