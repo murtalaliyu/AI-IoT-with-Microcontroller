@@ -103,7 +103,7 @@ void setup() {
   delay(3000);
 
   // Define what the server does when the root directory "/" is accessed
-  server.on("/", handleRoot);
+  handleRoot();
 
   server.begin(); // Start the Web Server
   Serial.println("Set up HTTP server");
@@ -162,7 +162,9 @@ void loop() {
 }
 
 void handleRoot() {
-
+  server.on("/", []() {
+    server.send(200, "text/html", "<h1>Hello! ESP32 is working!</h1>");
+  });
 }
 
 void displayData(float temp, float hum) {
