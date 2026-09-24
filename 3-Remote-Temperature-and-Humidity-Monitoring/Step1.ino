@@ -67,53 +67,22 @@ void setup() {
   ledcSetup(BUZZER_CHANNEL, 2000, 8); // 2KHz frequency, 8-bits
   ledcAttachPin(BUZZER_PIN, BUZZER_CHANNEL);
 
-  display.init(); // initiate the OLED display
-  // Vertical screen rotation display (select whether to enable based on the actual installation orientation)
-  display.flipScreenVertically();
-  // default font ArialMT_Plain_16
-  display.setFont(ArialMT_Plain_16);
-  // text align to left
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  initDisplay();
 
-  // Connect to WiFi
-  Serial.print("Attempting to connect to: ");
-  Serial.println(ssid);
+  connectToWiFi();
 
-  WiFi.begin(ssid, password);
-
-  int timeoutCounter = 0;
-
-  // Stop if connected OR if 15 seconds have passed
-  while (WiFi.status() != WL_CONNECTED && timeoutCounter < 15) {
-    delay(1000);
-    Serial.print(".");
-    timeoutCounter++;
-  }
-
-  Serial.println("");
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi Connected!");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("WiFi Connection Timeout! Entering Offline Mode.");
-  }
-
-  delay(3000);
-
-  // Define what the server does when the root directory "/" is accessed
-  handleRoot();
+  // Set Web server routing
+  server.on("/", handleRoot);
+  server.on("/data", handleData);
+  server.on("/status", handleStatus);
+  server.onNotFound(handleNotFound);
 
   server.begin(); // Start the Web Server
-  Serial.println("Set up HTTP server");
-
-  Serial.println("System Startup");
-  server.onNotFound(handleNotFound);
+  Serial.println("HTTP server started!");
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Handle client requests
   server.handleClient();
 
   float humidity = dht.readHumidity();
@@ -135,18 +104,18 @@ void loop() {
   }
 
   // output information in serial monitor
-  Serial.print("");
+  /*Serial.print("");
   Serial.print(temperature, 1);
   Serial.print(" °C | ");
   Serial.print(humidity, 1);
-  Serial.println(" %RH");
+  Serial.println(" %RH");*/
 
   // refresh the OLED display
   displayData(temperature, humidity);
 
   // monitor thresholds
   if (temperature > TEMP_THRESHOLD || humidity > HUMI_THRESHOLD) {
-    Serial.println("Warning");
+    //Serial.println("Warning");
     displayAlarm(); // show the warning text on the display
     alarmStatus = true;
     alarmMessage = "Warning";
@@ -161,17 +130,251 @@ void loop() {
   delay(2000);
 }
 
-void handleRoot() {
-  server.on("/", []() {
-    server.send(200, "text/html", "<h1>Hello! ESP32 is working!</h1>");
-  });
+void initDisplay() {
+  display.init(); // initiate the OLED display
+  // Vertical screen rotation display (select whether to enable based on the actual installation orientation)
+  display.flipScreenVertically();
+  // default font ArialMT_Plain_16
+  display.setFont(ArialMT_Plain_16);
+  // text align to left
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
 }
 
+void connectToWiFi() {
+  display.clear();
+  display.drawString(0, 0, "Connecting to WiFi...");
+  display.display();
+
+  // Connect to WiFi
+  Serial.print("\nAttempting to connect to: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  int timeoutCounter = 0;
+
+  // Stop if connected OR if 15 seconds have passed
+  while (WiFi.status() != WL_CONNECTED && timeoutCounter < 15) {
+    delay(1000);
+    Serial.print(".");
+    timeoutCounter++;
+  }
+
+  Serial.println("");
+  display.clear();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi Connected!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+
+    // Display IP address on OLED
+    display.drawString(0, 0, "WiFi Connected");
+    display.drawString(0, 15, "IP:");
+    display.drawString(20, 15, WiFi.localIP().toString());
+    display.display();
+  } else {
+    Serial.println("WiFi Connection Timeout! Entering Offline Mode.");
+    display.drawString(0, 0, "Connection Timeout!");
+    display.display();
+  }
+
+  delay(3000);
+}
+
+void handleRoot() {
+  String html = R"rawliteral(
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>ESP32-S3 Environment Monitoring</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * {
+            box-sizing: border-box; /* ensure padding doesn't increase container width */
+          }
+          body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 5px;
+            color: white;
+            height: 100vh;
+            overflow: hidden; /* prevent overflow scrolling */
+          }
+          .container {
+            max-width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 15px;
+            background-filter: blur(10px);
+          }
+          h1 {
+            font-size: 1.4em; 
+            margin: 5px 0;  /* reduce title height */
+          }
+          .data-card {
+            background: rgba(255,255,255,0.2);
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 10px;
+          }
+          h2 {
+            font-size: 1.1em;
+            margin: 2px 0;
+          }
+          .alarm {
+            background: rgba(255,0,0,0.3);
+            color: #ff6b6b;
+            font-weight: bold;
+          }
+          .value {
+            font-size: 1.8em;
+            margin: 2px 0;
+          }
+          .unit {
+            font-size: 0.8em;
+            opacity: 0.8;
+          }
+          .last-update {
+            margin-top: 5px;
+            font-size: 0.9em;
+            opacity: 0.7;
+          }
+          button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+          }
+          button:hover {
+            background: #45a049;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="container">
+          <h1>Environment Monitor</h1>
+
+          <div class="data-card" id="tempCard">
+            <h2>Temperature</h2>
+            <div class="value" id="temperature">--</div>
+            <div class="unit">°C</div>
+          </div>
+
+          <div class="data-card" id="humiCard">
+            <h2>Humidity</h2>
+            <div class="value" id="humidity">--</div>
+            <div class="unit">%RH</div>
+          </div>
+
+          <div class="data-card" id="statusCard">
+            <h2>System Condition</h2>
+            <div id="alarmStatus">--</div>
+            <div class="last-update" id="lastUpdate">Last Update: --</div>
+          </div>
+
+          <button onclick="refreshData()">Refresh Data</button>
+          <button onclick="location.reload()">Reload Page</button>
+        </div>
+
+        <script>
+          function updateData() {
+            fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+              document.getElementById('temperature').textContent = data.temperature.toFixed(1);
+              document.getElementById('humidity').textContent = data.humidity.toFixed(1);
+              document.getElementById('alarmStatus').textContent = data.alarmMessage;
+              document.getElementById('lastUpdate').textContent = 'Last Update: ' + new Date().toLocaleString();
+
+              // Update status color
+              const statusCard = document.getElementById('statusCard');
+              const tempCard = document.getElementById('tempCard');
+              const humiCard = document.getElementById('humiCard');
+
+              if (data.alarmStatus) {
+                statusCard.classList.add('alarm');
+              } else {
+                statusCard.classList.remove('alarm');
+              }
+
+              // Temperature warning
+              if (data.temperature > )rawliteral" + String(TEMP_THRESHOLD) + R"rawliteral() {
+                tempCard.classList.add('alarm');
+              } else {
+                tempCard.classList.remove('alarm');
+              }
+
+              // Humidity warning
+              if (data.humidity > )rawliteral" + String(HUMI_THRESHOLD) + R"rawliteral() {
+                humiCard.classList.add('alarm');
+              } else {
+                humiCard.classList.remove('alarm');
+              }
+            })
+            .catch(error => {
+              console.error('Failed to acquire data:', error);
+            });
+          }
+
+          function refreshData() {
+            updateData();
+          }
+
+          // Fetch data on page load
+          document.addEventListener('DOMContentLoaded', function() {
+            updateData();
+            // Automatically update data every 3 seconds
+            setInterval(updateData, 3000);
+          });
+        </script>
+      </body>
+    </html>
+  )rawliteral";
+
+  server.send(200, "text/html", html);
+}
+
+// Handle data API request
+void handleData() {
+  String json = "{";
+  json += "\"temperature\":" + String(currentTemperature, 1);
+  json += ",\"humidity\":" + String(currentHumidity, 1);
+  json += ",\"alarmStatus\":" + String(alarmStatus ? "true" : "false");
+  json += ",\"alarmMessage\":\"" + alarmMessage + "\"";
+  json += ",\"tempThreshold\":" + String(TEMP_THRESHOLD, 1);
+  json += ",\"humiThreshold\":" + String(HUMI_THRESHOLD, 1);
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
+// Handle status info request
+void handleStatus() {
+  String message = "ESP32-S3 Environment Monitoring System\n";
+  message += "Temperature: " + String(currentTemperature, 1) + "°C\n";
+  message += "Humidity: " + String(currentHumidity, 1) + "%\n";
+  message += "Condition: " + alarmMessage + "\n";
+  message += "IP: " + WiFi.localIP().toString() + "\n";
+
+  server.send(200, "text/plain", message);
+}
+
+// Stream data to OLED display
 void displayData(float temp, float hum) {
   // clear buffer
   display.clear();
 
-  // display title
+  // display title - 10 pixel font
   display.setFont(ArialMT_Plain_10);
   display.drawString(10, 0, "Environmental testing");
 
